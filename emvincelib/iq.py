@@ -7,6 +7,8 @@ import numpy as np
 from scipy.fftpack import fft, fftfreq, fftshift
 from sklearn import preprocessing
 import os
+import zmq
+import random
 
 sampleRate=20000000.0
 
@@ -25,8 +27,70 @@ dat = dat[0::2] + 1j*dat[1::2]
 # (courtesy of http://stackoverflow.com/a/5658446/) would be:
 # dat = dat.astype(np.float32).view(np.complex64)
 '''
-
 #########################################################################
+
+###############################################################################
+#           Functions to acquire data from GRC through ZMQ sockets            #
+###############################################################################
+
+# Ref: https://learning-0mq-with-pyzmq.readthedocs.io/en/latest/pyzmq/patterns/pushpull.html
+
+def startZMQClient(tcpHostPort="tcp://127.0.0.1:5557"):
+    '''
+    Start a ZMQ client socket connection in order to listen to a ZMQ server socket
+    which is usually from a ZMQ Sink block in GRC.
+    '''
+    consumer_id = random.randrange(1,10005)
+    print("I am consumer #%s" % (consumer_id))
+    context = zmq.Context()
+    # recieve work
+    consumer_receiver = context.socket(zmq.PULL)
+    consumer_receiver.connect(tcpHostPort)
+    return consumer_receiver
+
+def stopZMQClient(zmqClientSocket):
+    '''
+    Stop the ZMQ client socket.
+    '''
+    zmqClientSocket.close()
+    return 1
+
+def genTraceFiles(zmqClientSocket, directoryPath, fileName, numFiles, sampleRate=20e6, initSequenceNumber=1, windowSize=10, windowStepSize=10):
+    '''
+    This function reads data from a ZMQ Client socket and generate EM trace
+    files.
+    windowSize = 10ms
+    windowStepSize = 10ms
+    sampleRate=20MHz
+    '''
+    # The data segment which we need to be filled
+    # sample-rate x windowSize = num-samples
+    # 20MHz X 10ms = 200000
+    complexSampleLimit = int(sampleRate * (windowSize * 0.001))
+    # initializing segment buffer
+    segment = np.empty([0,0])
+
+    fileCount = initSequenceNumber
+    while True:
+        buff = zmqClientSocket.recv()
+        data = np.frombuffer(buff, dtype="float32")
+        data = data[0::2] + 1j*data[1::2]        
+        segment = np.append(segment, data)
+
+        if(len(segment) >= complexSampleLimit):
+            tempFileName= directoryPath + "/" + fileName + "." + str(fileCount) + ".npy"
+            np.save(tempFileName, segment[0:complexSampleLimit])            
+            # Reset the segment
+            segment = np.empty([0,0])
+            # incrementing the counter
+            fileCount = fileCount + 1            
+            
+        if (fileCount > numFiles):
+            return 1
+
+###############################################################################
+#     Functions to process cFile data saved by GRC File Sink blocks           #
+###############################################################################
 
 def getData(cfileName):
     """
@@ -96,6 +160,13 @@ def getTimeDuration(cFileName):
     # sample_points = time x sample_rate
     size_time = size_index / sampleRate
     return size_time
+
+
+
+###############################################################################
+#             Functions to plot data in complex numpy arrays                  #
+###############################################################################
+
 
 def plotWaveform(data, show=1):
     """
