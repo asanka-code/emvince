@@ -113,6 +113,7 @@ def tenFoldCrossValidation(classifier, X_data, Y_labels):
     '''
     scores = cross_val_score(classifier, X_data, Y_labels, cv=10)
     print(scores)
+    return scores
     
 def predictClass(classifier, x):
     y = classifier.predict(x)
@@ -124,3 +125,4 @@ def createClassifier():
     '''
     clf = MLPClassifier(solver='lbfgs', alpha=1e-20, hidden_layer_sizes=(10, 5), random_state=1)
     return clf
+
