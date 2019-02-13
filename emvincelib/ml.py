@@ -53,6 +53,30 @@ def getFeatureVector(data):
     feature_vector = fft_normalized[0]
     return feature_vector[0:l]
 
+def loadToXYFromEMTraces(trainingFilePath):
+    '''
+    This function reads raw EM traces from .npy files from the directory specified,
+    generate feature vector for each and loads them into the 2d array called X and
+    fill the relevant class label in Y array.
+    '''
+    pathToNpyFiles = trainingFilePath
+    X = []
+    Y = [] 
+    listOfFiles = os.listdir(pathToNpyFiles)  
+    #print("number of traces: %d" % len(listOfFiles))
+    for fileName in listOfFiles:
+        cryptoName, sequenceNumber, extension = fileName.split(".")    
+        data = np.load(pathToNpyFiles+"/"+fileName)
+        featureVector = getFeatureVector(data)
+        #fftloaded = np.load(pathToNpyFiles+"/"+fileName)
+        featureVector = featureVector.tolist()
+        X.extend([featureVector])
+        Y.append(cryptoName)
+        #if len(X)==800:
+        #    break      
+    return X, Y
+
+
 def loadDataToXY(trainingFilePath):
     '''
     This function loads data from .npy trace files from the directory specified
