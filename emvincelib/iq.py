@@ -9,6 +9,8 @@ from sklearn import preprocessing
 import os
 import zmq
 import random
+import time
+
 
 sampleRate=20000000.0
 
@@ -87,6 +89,52 @@ def genTraceFiles(zmqClientSocket, directoryPath, fileName, numFiles, sampleRate
             
         if (fileCount > numFiles):
             return 1
+
+def startSlidingWindow(zmqClientSocket, function, params, sampleRate=20e6, windowSize=10, windowStepSize=10, duration=5):
+    '''
+    This function reads an IQ interleaved data stream from an ZMQ socet and then extract data according
+    to a sliding window. Each extracted window of data is passed to the 'function', provided by the used,
+    for processing.
+    windowSize = 10ms
+    windowStepSize = 10ms
+    sampleRate=20MHz
+    duration= 5s
+    '''
+    # The data segment which we need to be filled
+    # sample-rate x windowSize = num-samples
+    # 20MHz X 10ms = 200000
+    complexSampleLimit = int(sampleRate * (windowSize * 0.001))
+    complexStepLimit = int(sampleRate * (windowStepSize * 0.001))    
+    print("window size: %d" % complexSampleLimit)
+    print("window step size: %d" % complexStepLimit)
+    # initializing segment buffer
+    segment = np.empty([0,0])
+    start_time = time.time()
+    
+    while True:
+        buff = zmqClientSocket.recv()
+        data = np.frombuffer(buff, dtype="float32")
+        data = data[0::2] + 1j*data[1::2]        
+        segment = np.append(segment, data)
+
+        if(len(segment) >= complexSampleLimit):
+            # calling the function given as a parameter
+            function(segment, *params)            
+            # removing a chunk of samples from the front of the buffer
+            segment = np.delete(segment, np.s_[:complexStepLimit:1])
+        
+        if ((time.time()-start_time) > duration):
+            return 1
+        
+def processWindow(window, a,b):
+    '''
+    Sample user defined function to be used with 'startSlidingWindow()' function
+    '''
+    print(len(window))
+    print("param1: %d param2: %d" % (a,b))
+    tempFileName= "./data/AES" + "." + str(time.time()) + ".npy"
+    np.save(tempFileName, window)  
+
 
 ###############################################################################
 #     Functions to process cFile data saved by GRC File Sink blocks           #
