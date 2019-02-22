@@ -105,8 +105,8 @@ def startSlidingWindow(zmqClientSocket, function, params, sampleRate=20e6, windo
     # 20MHz X 10ms = 200000
     complexSampleLimit = int(sampleRate * (windowSize * 0.001))
     complexStepLimit = int(sampleRate * (windowStepSize * 0.001))    
-    print("window size: %d" % complexSampleLimit)
-    print("window step size: %d" % complexStepLimit)
+    #print("window size: %d" % complexSampleLimit)
+    #print("window step size: %d" % complexStepLimit)
     # initializing segment buffer
     segment = np.empty([0,0])
     start_time = time.time()
@@ -119,7 +119,8 @@ def startSlidingWindow(zmqClientSocket, function, params, sampleRate=20e6, windo
 
         if(len(segment) >= complexSampleLimit):
             # calling the function given as a parameter
-            function(segment, *params)            
+            #function(segment, *params)            
+            function(segment[0:complexSampleLimit], *params)            
             # removing a chunk of samples from the front of the buffer
             segment = np.delete(segment, np.s_[:complexStepLimit:1])
         
