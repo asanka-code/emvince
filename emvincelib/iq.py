@@ -37,24 +37,43 @@ dat = dat[0::2] + 1j*dat[1::2]
 
 # Ref: https://learning-0mq-with-pyzmq.readthedocs.io/en/latest/pyzmq/patterns/pushpull.html
 
-def startZMQClient(tcpHostPort="tcp://127.0.0.1:5557"):
+def startZMQClient(tcpHostPort="tcp://127.0.0.1:5557", socketType="PULL"):
     '''
-    Start a ZMQ client socket connection in order to listen to a ZMQ server socket
-    which is usually from a ZMQ Sink block in GRC.
+    Start a ZMQ client socket connection in order to listen to a ZMQ
+    server socket which is usually from a ZMQ Sink block in GRC.
     '''
-    consumer_id = random.randrange(1,10005)
-    print("I am consumer #%s" % (consumer_id))
-    context = zmq.Context()
-    # recieve work
-    consumer_receiver = context.socket(zmq.PULL)
-    consumer_receiver.connect(tcpHostPort)
-    return consumer_receiver
+
+    if socketType=="PULL":
+        #print("PULL socket")
+        consumer_id = random.randrange(1,10005)
+        print("I am consumer #%s" % (consumer_id))
+        context = zmq.Context()
+        # recieve work
+        consumer_receiver = context.socket(zmq.PULL)
+        consumer_receiver.connect(tcpHostPort)
+        return consumer_receiver
+
+    elif socketType=="SUB":
+        #print("SUB socket")
+        subscriber_id = random.randrange(1,10005)
+        print("I am subscriber #%s" % (subscriber_id))
+        context = zmq.Context()
+        subscriber_receiver = context.socket(zmq.SUB)
+        subscriber_receiver.setsockopt_string(zmq.SUBSCRIBE, "")
+        subscriber_receiver.connect(tcpHostPort)
+        return subscriber_receiver
+    
+    else:
+        print("Socket type not recognized.")
+        return -1
+
 
 def stopZMQClient(zmqClientSocket):
     '''
     Stop the ZMQ client socket.
     '''
     zmqClientSocket.close()
+    print("Stopping client...")
     return 1
 
 def genTraceFiles(zmqClientSocket, directoryPath, fileName, numFiles, sampleRate=20e6, initSequenceNumber=1, windowSize=10, windowStepSize=10):
@@ -93,7 +112,7 @@ def genTraceFiles(zmqClientSocket, directoryPath, fileName, numFiles, sampleRate
 def startSlidingWindow(zmqClientSocket, function, params, sampleRate=20e6, windowSize=10, windowStepSize=10, duration=5):
     '''
     This function reads an IQ interleaved data stream from an ZMQ socet and then extract data according
-    to a sliding window. Each extracted window of data is passed to the 'function', provided by the used,
+    to a sliding window. Each extracted window of data is passed to the 'function', provided by the user,
     for processing.
     windowSize = 10ms
     windowStepSize = 10ms
