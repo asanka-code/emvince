@@ -109,6 +109,43 @@ def genTraceFiles(zmqClientSocket, directoryPath, fileName, numFiles, sampleRate
         if (fileCount > numFiles):
             return 1
 
+
+def genSingleTraceFile(zmqClientSocket, directoryPath, fileName, sampleRate=20e6, windowSize=10):
+    '''
+    This function reads data from a ZMQ Client socket and generate a single EM trace file.
+    windowSize = 10ms
+    windowStepSize = 10ms
+    sampleRate=20MHz
+    '''
+    # The data segment which we need to be filled
+    # sample-rate x windowSize = num-samples
+    # 20MHz X 10ms = 200000
+    complexSampleLimit = int(sampleRate * (windowSize * 0.001))
+    # initializing segment buffer
+    segment = np.empty([0,0])
+
+    #fileCount = initSequenceNumber
+    while True:
+        buff = zmqClientSocket.recv()
+        data = np.frombuffer(buff, dtype="float32")
+        data = data[0::2] + 1j*data[1::2]        
+        segment = np.append(segment, data)
+
+        if(len(segment) >= complexSampleLimit):
+            tempFileName= directoryPath + "/" + fileName + ".npy"
+            np.save(tempFileName, segment[0:complexSampleLimit])            
+            # Reset the segment
+            segment = np.empty([0,0])
+            # returning from the function
+            return 1
+            # incrementing the counter
+            #fileCount = fileCount + 1            
+         	   
+        #if (fileCount > numFiles):
+        #    return 1
+
+
+
 def startSlidingWindow(zmqClientSocket, function, params, sampleRate=20e6, windowSize=10, windowStepSize=10, duration=5):
     '''
     This function reads an IQ interleaved data stream from an ZMQ socet and then extract data according
