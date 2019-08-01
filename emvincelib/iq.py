@@ -192,6 +192,35 @@ def processWindow(window, a,b):
     tempFileName= "./data/AES" + "." + str(time.time()) + ".npy"
     np.save(tempFileName, window)  
 
+def getTimeDuration(fileName, fileType="cfile"):
+    '''
+    Calculate the total time duration represented in an I-Q file that can be in either cfile or npy format.
+    '''
+    if (fileType=="cfile"):
+        # dealing with a cfile file format
+        #Original bytes in file (offset_bytes) => array of float32 (4bytes in each element)
+        #data = np.fromfile(cfileName, dtype="float32")
+        #each pair of elements of the array is combined to create a single complex numpy array element.
+        #data = data[0::2] + 1j*data[1::2]
+        #Therefore, origina_file_size = numpy_array_length x 2 x 4
+        size_bytes = os.path.getsize(fileName)
+        size_index = size_bytes / ( 2 * 4 )
+    
+        # sample_points = time x sample_rate
+        size_time = size_index / sampleRate
+
+    elif (fileType=="npy"):
+        # dealing with a numpy file format
+        data = np.load(fileName, mmap_mode='r')
+        numpy_array_length = len(data)
+        size_time = numpy_array_length / sampleRate
+
+    else:
+        # unrecognized file type
+        size_time = -1
+
+    return size_time
+    
 
 ###############################################################################
 #     Functions to process cFile data saved by GRC File Sink blocks           #
@@ -248,24 +277,6 @@ def getSegmentData(cFileName, offsetTime, windowTime):
     data = np.frombuffer(segment, dtype="float32")
     data = data[0::2] + 1j*data[1::2]
     return data
-
-def getTimeDuration(cFileName):
-    '''
-    Calculate the total time duration represented in an I-Q file.
-    '''
-    size_bytes = os.path.getsize(cFileName)
-
-    #Original bytes in file (offset_bytes) => array of float32 (4bytes in each element)
-    #data = np.fromfile(cfileName, dtype="float32")
-    #each pair of elements of the array is combined to create a single complex numpy array element.
-    #data = data[0::2] + 1j*data[1::2]
-    #Therefore, origina_file_size = numpy_array_length x 2 x 4
-    size_index = size_bytes / ( 2 * 4 )
-    
-    # sample_points = time x sample_rate
-    size_time = size_index / sampleRate
-    return size_time
-
 
 
 ###############################################################################
@@ -442,7 +453,25 @@ def getFeatureVector(data):
 #                         Deleted function                                #
 ###############################################################################
 
-'''   
+'''  
+
+def getTimeDuration(cFileName):
+    """
+    Calculate the total time duration represented in an I-Q file.
+    """
+    size_bytes = os.path.getsize(cFileName)
+
+    #Original bytes in file (offset_bytes) => array of float32 (4bytes in each element)
+    #data = np.fromfile(cfileName, dtype="float32")
+    #each pair of elements of the array is combined to create a single complex numpy array element.
+    #data = data[0::2] + 1j*data[1::2]
+    #Therefore, origina_file_size = numpy_array_length x 2 x 4
+    size_index = size_bytes / ( 2 * 4 )
+    
+    # sample_points = time x sample_rate
+    size_time = size_index / sampleRate
+    return size_time
+
 def getSegment(timeOffset, window):
     """
     Given a starting time offset (seconds) and a time window (seconds), this function
